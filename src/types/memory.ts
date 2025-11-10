@@ -25,3 +25,19 @@ export interface MemoryBlock {
   processId?: number;
   type: 'free' | 'allocated';
 }
+
+export type AllocationStrategy = 'first-fit' | 'best-fit' | 'worst-fit';
+
+export interface AllocationResult {
+  blocks: MemoryBlock[];
+  internalFragmentation: number;
+  externalFragmentation: number;
+  totalAllocated: number;
+  totalFree: number;
+}
+
+export interface MemoryAccess {
+  processId: number;
+  address: number;
+  timestamp: number;
+}

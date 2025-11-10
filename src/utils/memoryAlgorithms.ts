@@ -1,4 +1,4 @@
-import { Process, PageTableEntry, SegmentTableEntry } from '@/types/memory';
+import { Process, PageTableEntry, SegmentTableEntry, MemoryBlock, AllocationStrategy, AllocationResult } from '@/types/memory';
 
 const PAGE_SIZE = 4096; // 4KB
 const MAX_MEMORY = 1048576; // 1MB
@@ -54,4 +54,123 @@ export const getProcessColors = (processId: number): string => {
     'hsl(200 100% 45%)', // Blue
   ];
   return colors[processId % colors.length];
+};
+
+// Memory Allocation Strategies
+export const allocateMemory = (
+  processes: Process[],
+  strategy: AllocationStrategy
+): AllocationResult => {
+  const blocks: MemoryBlock[] = [];
+  let currentAddress = 0;
+  let totalInternalFragmentation = 0;
+  
+  // Initialize with one large free block
+  const freeBlocks: MemoryBlock[] = [{
+    id: 0,
+    start: 0,
+    size: MAX_MEMORY,
+    type: 'free'
+  }];
+
+  processes.forEach((process, index) => {
+    let selectedBlockIndex = -1;
+
+    switch (strategy) {
+      case 'first-fit':
+        selectedBlockIndex = freeBlocks.findIndex(block => block.size >= process.size);
+        break;
+      
+      case 'best-fit':
+        let minSize = Infinity;
+        freeBlocks.forEach((block, i) => {
+          if (block.size >= process.size && block.size < minSize) {
+            minSize = block.size;
+            selectedBlockIndex = i;
+          }
+        });
+        break;
+      
+      case 'worst-fit':
+        let maxSize = -1;
+        freeBlocks.forEach((block, i) => {
+          if (block.size >= process.size && block.size > maxSize) {
+            maxSize = block.size;
+            selectedBlockIndex = i;
+          }
+        });
+        break;
+    }
+
+    if (selectedBlockIndex !== -1) {
+      const selectedBlock = freeBlocks[selectedBlockIndex];
+      
+      // Allocate memory
+      blocks.push({
+        id: blocks.length,
+        start: selectedBlock.start,
+        size: process.size,
+        processId: process.id,
+        type: 'allocated'
+      });
+
+      // Calculate internal fragmentation (unused space within allocated block)
+      const blockSize = Math.ceil(process.size / PAGE_SIZE) * PAGE_SIZE;
+      totalInternalFragmentation += blockSize - process.size;
+
+      // Update free blocks
+      const remainingSize = selectedBlock.size - process.size;
+      if (remainingSize > 0) {
+        freeBlocks[selectedBlockIndex] = {
+          id: freeBlocks.length,
+          start: selectedBlock.start + process.size,
+          size: remainingSize,
+          type: 'free'
+        };
+      } else {
+        freeBlocks.splice(selectedBlockIndex, 1);
+      }
+    }
+  });
+
+  // Calculate external fragmentation (free space that can't be used)
+  const totalFree = freeBlocks.reduce((sum, block) => sum + block.size, 0);
+  const totalAllocated = blocks.reduce((sum, block) => sum + block.size, 0);
+  const largestFreeBlock = Math.max(0, ...freeBlocks.map(b => b.size));
+  const externalFragmentation = totalFree - largestFreeBlock;
+
+  return {
+    blocks,
+    internalFragmentation: totalInternalFragmentation,
+    externalFragmentation,
+    totalAllocated,
+    totalFree
+  };
+};
+
+export const calculateFragmentation = (processes: Process[]): {
+  paging: { internal: number; external: number };
+  segmentation: { internal: number; external: number };
+} => {
+  // Paging fragmentation
+  let pagingInternal = 0;
+  processes.forEach(process => {
+    const pagesNeeded = Math.ceil(process.size / PAGE_SIZE);
+    const allocatedSize = pagesNeeded * PAGE_SIZE;
+    pagingInternal += allocatedSize - process.size;
+  });
+
+  // Segmentation fragmentation (using first-fit)
+  const segResult = allocateMemory(processes, 'first-fit');
+
+  return {
+    paging: {
+      internal: pagingInternal,
+      external: 0 // Paging has no external fragmentation
+    },
+    segmentation: {
+      internal: segResult.internalFragmentation,
+      external: segResult.externalFragmentation
+    }
+  };
 };
