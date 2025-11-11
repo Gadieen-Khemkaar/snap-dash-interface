@@ -5,10 +5,14 @@ import { PagingVisualization } from '@/components/PagingVisualization';
 import { SegmentationVisualization } from '@/components/SegmentationVisualization';
 import { MemoryVisualizer } from '@/components/MemoryVisualizer';
 import { FragmentationAnalysis } from '@/components/FragmentationAnalysis';
+import { StatisticsDashboard } from '@/components/StatisticsDashboard';
+import { AllocationComparison } from '@/components/AllocationComparison';
+import { AddressTranslator } from '@/components/AddressTranslator';
+import { AllocationAnimation } from '@/components/AllocationAnimation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Process } from '@/types/memory';
 import { calculatePaging, calculateSegmentation } from '@/utils/memoryAlgorithms';
-import { Cpu, Database } from 'lucide-react';
+import { Cpu, Database, BarChart3, PlayCircle } from 'lucide-react';
 
 const Index = () => {
   const [processes, setProcesses] = useState<Process[]>([]);
@@ -59,7 +63,7 @@ const Index = () => {
 
           <div className="lg:col-span-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 bg-card border border-border">
+              <TabsList className="grid w-full grid-cols-4 bg-card border border-border">
                 <TabsTrigger
                   value="paging"
                   className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
@@ -74,6 +78,20 @@ const Index = () => {
                   <Database className="w-4 h-4 mr-2" />
                   Segmentation
                 </TabsTrigger>
+                <TabsTrigger
+                  value="statistics"
+                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Statistics
+                </TabsTrigger>
+                <TabsTrigger
+                  value="animation"
+                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  <PlayCircle className="w-4 h-4 mr-2" />
+                  Animation
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="paging" className="space-y-6 mt-6">
@@ -86,6 +104,16 @@ const Index = () => {
                 <MemoryVisualizer processes={processes} type="segmentation" />
                 <FragmentationAnalysis processes={processes} type="segmentation" />
                 <SegmentationVisualization segmentTable={segmentTable} />
+              </TabsContent>
+
+              <TabsContent value="statistics" className="space-y-6 mt-6">
+                <StatisticsDashboard processes={processes} />
+                <AllocationComparison processes={processes} />
+                <AddressTranslator processes={processes} />
+              </TabsContent>
+
+              <TabsContent value="animation" className="space-y-6 mt-6">
+                <AllocationAnimation processes={processes} />
               </TabsContent>
             </Tabs>
           </div>
