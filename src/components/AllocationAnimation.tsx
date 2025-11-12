@@ -259,7 +259,7 @@ export const AllocationAnimation = ({ processes }: AllocationAnimationProps) => 
             {/* Memory Visualization */}
             <div className="space-y-2">
               <div className="text-sm font-medium text-foreground">Memory Layout</div>
-              <div className="h-64 rounded-lg border border-border bg-secondary/10 overflow-hidden relative">
+              <div className="h-64 rounded-lg border border-border bg-muted/20 overflow-hidden relative">
                 {/* Allocated Blocks */}
                 {state.allocatedProcesses.map(({ process, startAddress }, idx) => {
                   const topPercent = (startAddress / MAX_MEMORY) * 100;
@@ -267,17 +267,17 @@ export const AllocationAnimation = ({ processes }: AllocationAnimationProps) => 
                   return (
                     <div
                       key={idx}
-                      className="absolute left-0 right-0 transition-all duration-500 border-b border-white/20"
+                      className="absolute left-0 right-0 transition-all duration-500 border border-background/20 flex items-center justify-center"
                       style={{
                         top: `${topPercent}%`,
                         height: `${heightPercent}%`,
                         backgroundColor: getProcessColors(process.id),
-                        opacity: 0.85
+                        zIndex: 10
                       }}
                     >
-                      <div className="p-2 text-xs font-mono text-white mix-blend-difference">
+                      <div className="text-xs font-mono text-white font-semibold drop-shadow-lg text-center">
                         <div>P{process.id}: {formatBytes(process.size)}</div>
-                        <div className="text-[10px] opacity-75">@ {startAddress}</div>
+                        <div className="text-[10px] opacity-90">@ {startAddress}</div>
                       </div>
                     </div>
                   );
@@ -290,14 +290,16 @@ export const AllocationAnimation = ({ processes }: AllocationAnimationProps) => 
                   return (
                     <div
                       key={`free-${idx}`}
-                      className="absolute left-0 right-0 border border-dashed border-muted-foreground/30"
+                      className="absolute left-0 right-0 border-2 border-dashed border-border/50 flex items-center justify-center"
                       style={{
                         top: `${topPercent}%`,
                         height: `${heightPercent}%`,
-                        backgroundColor: 'hsl(var(--muted))',
-                        opacity: 0.3
+                        backgroundColor: 'transparent',
+                        zIndex: 1
                       }}
-                    />
+                    >
+                      <span className="text-xs text-muted-foreground font-mono">Free: {formatBytes(block.size)}</span>
+                    </div>
                   );
                 })}
               </div>
