@@ -264,18 +264,17 @@ export const AllocationAnimation = ({ processes }: AllocationAnimationProps) => 
                 {state.allocatedProcesses.map(({ process, startAddress }, idx) => {
                   const topPercent = (startAddress / MAX_MEMORY) * 100;
                   const heightPercent = (process.size / MAX_MEMORY) * 100;
-                  const isLargeEnough = heightPercent > 8; // Only show full text if block is >8% of total
+                  const isLargeEnough = heightPercent > 8;
                   return (
                     <div
                       key={idx}
-                      className="absolute left-0 right-0 transition-all duration-500 border border-background/20 flex items-center justify-center overflow-hidden"
+                      className="absolute left-0 right-0 transition-all duration-500 border border-background/20 flex items-center justify-center overflow-visible"
                       style={{
                         top: `${topPercent}%`,
                         height: `${heightPercent}%`,
                         backgroundColor: getProcessColors(process.id),
                         zIndex: 10
                       }}
-                      title={`Process ${process.id}: ${formatBytes(process.size)} @ ${startAddress}`}
                     >
                       {isLargeEnough ? (
                         <div className="text-xs font-mono text-white font-semibold drop-shadow-lg text-center px-2">
@@ -283,7 +282,9 @@ export const AllocationAnimation = ({ processes }: AllocationAnimationProps) => 
                           <div className="text-[10px] opacity-90">@ {startAddress}</div>
                         </div>
                       ) : (
-                        <div className="text-[10px] font-mono text-white font-bold">P{process.id}</div>
+                        <div className="text-[9px] font-mono text-white font-bold drop-shadow-md whitespace-nowrap">
+                          P{process.id} @ {startAddress}
+                        </div>
                       )}
                     </div>
                   );
