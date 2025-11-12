@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Process, AllocationStrategy } from '@/types/memory';
 import { getProcessColors } from '@/utils/memoryAlgorithms';
-import { Play, Pause, RotateCcw, FastForward } from 'lucide-react';
+import { Play, Pause, RotateCcw, FastForward, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 
 interface AllocationAnimationProps {
   processes: Process[];
@@ -24,6 +24,9 @@ export const AllocationAnimation = ({ processes }: AllocationAnimationProps) => 
   const [strategy, setStrategy] = useState<AllocationStrategy>('first-fit');
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1000);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<AnimationState>({
     step: 0,
     allocatedProcesses: [],
@@ -120,6 +123,28 @@ export const AllocationAnimation = ({ processes }: AllocationAnimationProps) => 
       message: 'Ready to allocate processes'
     });
   };
+
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.min(prev + 0.5, 5));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel(prev => Math.max(prev - 0.5, 1));
+  };
+
+  const handleResetZoom = () => {
+    setZoomLevel(1);
+    setScrollPosition(0);
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  };
+
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollPosition;
+    }
+  }, [scrollPosition]);
 
   const handleStepForward = () => {
     setIsPlaying(false);
@@ -256,59 +281,93 @@ export const AllocationAnimation = ({ processes }: AllocationAnimationProps) => 
               <p className="text-sm text-foreground font-medium">{state.message}</p>
             </div>
 
+            {/* Zoom Controls */}
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-medium text-foreground">Zoom:</div>
+              <Button size="sm" variant="outline" onClick={handleZoomIn} disabled={zoomLevel >= 5}>
+                <ZoomIn className="w-4 h-4" />
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleZoomOut} disabled={zoomLevel <= 1}>
+                <ZoomOut className="w-4 h-4" />
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleResetZoom} disabled={zoomLevel === 1}>
+                <Maximize2 className="w-4 h-4" />
+              </Button>
+              <span className="text-xs text-muted-foreground ml-2">{zoomLevel}x</span>
+            </div>
+
             {/* Memory Visualization */}
             <div className="space-y-2">
               <div className="text-sm font-medium text-foreground">Memory Layout</div>
-              <div className="h-64 rounded-lg border border-border bg-muted/20 overflow-hidden relative">
-                {/* Allocated Blocks */}
-                {state.allocatedProcesses.map(({ process, startAddress }, idx) => {
-                  const topPercent = (startAddress / MAX_MEMORY) * 100;
-                  const heightPercent = (process.size / MAX_MEMORY) * 100;
-                  const isLargeEnough = heightPercent > 8;
-                  return (
-                    <div
-                      key={idx}
-                      className="absolute left-0 right-0 transition-all duration-500 border border-background/20 flex items-center justify-center overflow-visible"
-                      style={{
-                        top: `${topPercent}%`,
-                        height: `${heightPercent}%`,
-                        backgroundColor: getProcessColors(process.id),
-                        zIndex: 10
-                      }}
-                    >
-                      {isLargeEnough ? (
-                        <div className="text-xs font-mono text-white font-semibold drop-shadow-lg text-center px-2">
-                          <div>P{process.id}: {formatBytes(process.size)}</div>
-                          <div className="text-[10px] opacity-90">@ {startAddress}</div>
-                        </div>
-                      ) : (
-                        <div className="text-[9px] font-mono text-white font-bold drop-shadow-md whitespace-nowrap">
-                          P{process.id} @ {startAddress}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+              <div 
+                ref={scrollContainerRef}
+                className="h-64 rounded-lg border border-border bg-muted/20 overflow-auto relative"
+                onScroll={(e) => setScrollPosition(e.currentTarget.scrollTop)}
+              >
+                <div 
+                  className="relative w-full"
+                  style={{ 
+                    height: `${256 * zoomLevel}px`,
+                    minHeight: '100%'
+                  }}
+                >
+                  {/* Allocated Blocks */}
+                  {state.allocatedProcesses.map(({ process, startAddress }, idx) => {
+                    const topPercent = (startAddress / MAX_MEMORY) * 100;
+                    const heightPercent = (process.size / MAX_MEMORY) * 100;
+                    const actualHeight = (256 * zoomLevel * heightPercent) / 100;
+                    const isLargeEnough = actualHeight > 24;
+                    return (
+                      <div
+                        key={idx}
+                        className="absolute left-0 right-0 transition-all duration-500 border border-background/20 flex items-center justify-center overflow-visible"
+                        style={{
+                          top: `${topPercent}%`,
+                          height: `${heightPercent}%`,
+                          backgroundColor: getProcessColors(process.id),
+                          zIndex: 10
+                        }}
+                      >
+                        {isLargeEnough ? (
+                          <div className="text-xs font-mono text-white font-semibold drop-shadow-lg text-center px-2">
+                            <div>P{process.id}: {formatBytes(process.size)}</div>
+                            <div className="text-[10px] opacity-90">@ {startAddress}</div>
+                          </div>
+                        ) : (
+                          <div className="text-[9px] font-mono text-white font-bold drop-shadow-md whitespace-nowrap">
+                            P{process.id} @ {startAddress}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
 
-                {/* Free Blocks */}
-                {state.freeBlocks.map((block, idx) => {
-                  const topPercent = (block.start / MAX_MEMORY) * 100;
-                  const heightPercent = (block.size / MAX_MEMORY) * 100;
-                  return (
-                    <div
-                      key={`free-${idx}`}
-                      className="absolute left-0 right-0 border-2 border-dashed border-border/50 flex items-center justify-center"
-                      style={{
-                        top: `${topPercent}%`,
-                        height: `${heightPercent}%`,
-                        backgroundColor: 'transparent',
-                        zIndex: 1
-                      }}
-                    >
-                      <span className="text-xs text-muted-foreground font-mono">Free: {formatBytes(block.size)}</span>
-                    </div>
-                  );
-                })}
+                  {/* Free Blocks */}
+                  {state.freeBlocks.map((block, idx) => {
+                    const topPercent = (block.start / MAX_MEMORY) * 100;
+                    const heightPercent = (block.size / MAX_MEMORY) * 100;
+                    const actualHeight = (256 * zoomLevel * heightPercent) / 100;
+                    const showText = actualHeight > 20;
+                    return (
+                      <div
+                        key={`free-${idx}`}
+                        className="absolute left-0 right-0 border-2 border-dashed border-border/50 flex items-center justify-center"
+                        style={{
+                          top: `${topPercent}%`,
+                          height: `${heightPercent}%`,
+                          backgroundColor: 'transparent',
+                          zIndex: 1
+                        }}
+                      >
+                        {showText && (
+                          <span className="text-xs text-muted-foreground font-mono">
+                            Free: {formatBytes(block.size)}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </>
