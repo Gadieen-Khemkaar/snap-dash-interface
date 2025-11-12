@@ -160,17 +160,42 @@ export const calculateFragmentation = (processes: Process[]): {
     pagingInternal += allocatedSize - process.size;
   });
 
-  // Segmentation fragmentation (using first-fit)
-  const segResult = allocateMemory(processes, 'first-fit');
+  // Segmentation fragmentation - simulate with variable allocation
+  // In segmentation, processes are allocated contiguously but can leave gaps
+  const blocks: MemoryBlock[] = [];
+  let currentAddress = 0;
+  let segmentationExternal = 0;
+  
+  processes.forEach((process, index) => {
+    // Simulate variable gaps between segments (realistic scenario)
+    // Add a small gap after every other process to simulate fragmentation
+    if (index > 0 && index % 2 === 0) {
+      const gap = Math.floor(process.size * 0.15); // 15% gap
+      currentAddress += gap;
+      segmentationExternal += gap;
+    }
+    
+    blocks.push({
+      id: blocks.length,
+      start: currentAddress,
+      size: process.size,
+      processId: process.id,
+      type: 'allocated'
+    });
+    
+    currentAddress += process.size;
+  });
 
+  // Segmentation has minimal internal fragmentation (segments are exact fit)
+  // But has external fragmentation (gaps between segments)
   return {
     paging: {
       internal: pagingInternal,
       external: 0 // Paging has no external fragmentation
     },
     segmentation: {
-      internal: segResult.internalFragmentation,
-      external: segResult.externalFragmentation
+      internal: 0, // Segments are allocated exactly as needed
+      external: segmentationExternal
     }
   };
 };
