@@ -64,38 +64,32 @@ export const allocateMemory = (
   const blocks: MemoryBlock[] = [];
   let totalInternalFragmentation = 0;
   
-  // Pre-fragment memory to simulate realistic scenario
-  // Create multiple free blocks of varying sizes with some "already allocated" blocks
+  // Pre-fragment memory strategically to show differences between strategies
+  // Create free blocks sized relative to typical process sizes
+  // This ensures different strategies will make different choices
   const freeBlocks: MemoryBlock[] = [];
-  const preallocatedSizes = [40000, 30000, 25000, 35000]; // Simulated existing allocations
-  let currentPos = 0;
   
-  // Create fragmented memory layout
-  preallocatedSizes.forEach((size, idx) => {
-    // Add a "pre-allocated" block (not tracked in our blocks array)
-    currentPos += size;
-    
-    // Add a free gap after each pre-allocated block
-    const gapSize = 20000 + (idx * 10000); // Varying gap sizes
+  // Calculate average process size to create strategic gaps
+  const avgProcessSize = processes.reduce((sum, p) => sum + p.size, 0) / processes.length || 10000;
+  
+  // Create fragmented memory with strategic block sizes
+  const gaps = [
+    { start: 0, size: Math.floor(avgProcessSize * 0.8) },           // Small gap - fits only small processes
+    { start: 50000, size: Math.floor(avgProcessSize * 1.5) },       // Medium gap - fits small/medium
+    { start: 120000, size: Math.floor(avgProcessSize * 0.9) },      // Small gap
+    { start: 200000, size: Math.floor(avgProcessSize * 2.5) },      // Large gap - fits most processes
+    { start: 320000, size: Math.floor(avgProcessSize * 1.2) },      // Medium gap
+    { start: 420000, size: MAX_MEMORY - 420000 }                     // Huge remaining space
+  ];
+  
+  gaps.forEach((gap, idx) => {
     freeBlocks.push({
-      id: freeBlocks.length,
-      start: currentPos,
-      size: gapSize,
+      id: idx,
+      start: gap.start,
+      size: gap.size,
       type: 'free'
     });
-    currentPos += gapSize;
   });
-  
-  // Add remaining memory as one large free block
-  const remainingSize = MAX_MEMORY - currentPos;
-  if (remainingSize > 0) {
-    freeBlocks.push({
-      id: freeBlocks.length,
-      start: currentPos,
-      size: remainingSize,
-      type: 'free'
-    });
-  }
 
   processes.forEach((process, index) => {
     let selectedBlockIndex = -1;
@@ -125,6 +119,12 @@ export const allocateMemory = (
         });
         break;
     }
+
+    console.log(`[${strategy}] Process ${process.id} (${process.size} bytes):`, {
+      availableBlocks: freeBlocks.map(b => b.size),
+      selectedBlockIndex,
+      selectedBlockSize: selectedBlockIndex >= 0 ? freeBlocks[selectedBlockIndex].size : 'N/A'
+    });
 
     if (selectedBlockIndex !== -1) {
       const selectedBlock = freeBlocks[selectedBlockIndex];
