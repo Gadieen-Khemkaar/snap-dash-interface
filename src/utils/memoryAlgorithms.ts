@@ -62,16 +62,40 @@ export const allocateMemory = (
   strategy: AllocationStrategy
 ): AllocationResult => {
   const blocks: MemoryBlock[] = [];
-  let currentAddress = 0;
   let totalInternalFragmentation = 0;
   
-  // Initialize with one large free block
-  const freeBlocks: MemoryBlock[] = [{
-    id: 0,
-    start: 0,
-    size: MAX_MEMORY,
-    type: 'free'
-  }];
+  // Pre-fragment memory to simulate realistic scenario
+  // Create multiple free blocks of varying sizes with some "already allocated" blocks
+  const freeBlocks: MemoryBlock[] = [];
+  const preallocatedSizes = [40000, 30000, 25000, 35000]; // Simulated existing allocations
+  let currentPos = 0;
+  
+  // Create fragmented memory layout
+  preallocatedSizes.forEach((size, idx) => {
+    // Add a "pre-allocated" block (not tracked in our blocks array)
+    currentPos += size;
+    
+    // Add a free gap after each pre-allocated block
+    const gapSize = 20000 + (idx * 10000); // Varying gap sizes
+    freeBlocks.push({
+      id: freeBlocks.length,
+      start: currentPos,
+      size: gapSize,
+      type: 'free'
+    });
+    currentPos += gapSize;
+  });
+  
+  // Add remaining memory as one large free block
+  const remainingSize = MAX_MEMORY - currentPos;
+  if (remainingSize > 0) {
+    freeBlocks.push({
+      id: freeBlocks.length,
+      start: currentPos,
+      size: remainingSize,
+      type: 'free'
+    });
+  }
 
   processes.forEach((process, index) => {
     let selectedBlockIndex = -1;
