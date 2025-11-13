@@ -20,6 +20,33 @@ interface AnimationState {
 const MAX_MEMORY = 1048576;
 const PAGE_SIZE = 4096;
 
+// Create pre-fragmented memory to show differences between strategies
+const createPreFragmentedMemory = () => {
+  const preallocatedSizes = [40000, 30000, 25000, 35000];
+  const freeBlocks: { start: number; size: number }[] = [];
+  let currentPos = 0;
+  
+  preallocatedSizes.forEach((size, idx) => {
+    currentPos += size;
+    const gapSize = 20000 + (idx * 10000);
+    freeBlocks.push({
+      start: currentPos,
+      size: gapSize
+    });
+    currentPos += gapSize;
+  });
+  
+  const remainingSize = MAX_MEMORY - currentPos;
+  if (remainingSize > 0) {
+    freeBlocks.push({
+      start: currentPos,
+      size: remainingSize
+    });
+  }
+  
+  return freeBlocks;
+};
+
 export const AllocationAnimation = ({ processes }: AllocationAnimationProps) => {
   const [strategy, setStrategy] = useState<AllocationStrategy>('first-fit');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -30,7 +57,7 @@ export const AllocationAnimation = ({ processes }: AllocationAnimationProps) => 
   const [state, setState] = useState<AnimationState>({
     step: 0,
     allocatedProcesses: [],
-    freeBlocks: [{ start: 0, size: MAX_MEMORY }],
+    freeBlocks: createPreFragmentedMemory(),
     currentProcess: null,
     message: 'Click Play to start allocation simulation'
   });
@@ -118,7 +145,7 @@ export const AllocationAnimation = ({ processes }: AllocationAnimationProps) => 
     setState({
       step: 0,
       allocatedProcesses: [],
-      freeBlocks: [{ start: 0, size: MAX_MEMORY }],
+      freeBlocks: createPreFragmentedMemory(),
       currentProcess: null,
       message: 'Ready to allocate processes'
     });
