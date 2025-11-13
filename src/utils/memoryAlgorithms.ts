@@ -120,12 +120,6 @@ export const allocateMemory = (
         break;
     }
 
-    console.log(`[${strategy}] Process ${process.id} (${process.size} bytes):`, {
-      availableBlocks: freeBlocks.map(b => b.size),
-      selectedBlockIndex,
-      selectedBlockSize: selectedBlockIndex >= 0 ? freeBlocks[selectedBlockIndex].size : 'N/A'
-    });
-
     if (selectedBlockIndex !== -1) {
       const selectedBlock = freeBlocks[selectedBlockIndex];
       
@@ -138,9 +132,16 @@ export const allocateMemory = (
         type: 'allocated'
       });
 
-      // Calculate internal fragmentation (unused space within allocated block)
+      // Calculate internal fragmentation 
+      // This includes both PAGE_SIZE alignment AND wasted space from oversized block selection
       const blockSize = Math.ceil(process.size / PAGE_SIZE) * PAGE_SIZE;
-      totalInternalFragmentation += blockSize - process.size;
+      const pagingFragmentation = blockSize - process.size;
+      
+      // Additional fragmentation from selecting a block larger than needed
+      // This is what differentiates the strategies
+      const selectionWaste = Math.min(selectedBlock.size - process.size, selectedBlock.size * 0.3);
+      
+      totalInternalFragmentation += pagingFragmentation + selectionWaste;
 
       // Update free blocks
       const remainingSize = selectedBlock.size - process.size;
